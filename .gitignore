@@ -1,0 +1,4 @@
+*.o
+bin/
+vendor/
+ingress_rules_editor
