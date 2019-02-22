@@ -5,7 +5,7 @@ RUN mkdir /app
 WORKDIR /app
 
 ADD . /app
-RUN go build -o ingress_rules_editor ./ingress_rules_editor.go
+RUN go build -o ingress_rules_editor ./main.go
 
 # Runner
 FROM gcr.io/cloud-builders/kubectl@sha256:abeaf7bd496e66301f92fd884683feaec6894bfb12d1a02fdbc98a920fab4968

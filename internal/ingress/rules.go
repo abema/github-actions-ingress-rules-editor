@@ -2,7 +2,7 @@ package ingress
 
 import (
 	"k8s.io/api/extensions/v1beta1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -47,7 +47,7 @@ func New(ingress string, opt *Option) (*RuleEditor, error) {
 
 type Option struct {
 	Namespace  string
-	GetOptions v1.GetOptions
+	GetOptions metav1.GetOptions
 }
 
 type RuleEditor struct {
@@ -56,14 +56,14 @@ type RuleEditor struct {
 	Ingress   *v1beta1.Ingress
 }
 
-func (e *RuleEditor) Add(host string, svc string, port int) (added bool, err error) {
+func (e *RuleEditor) Add(host string, path string, svc string, port int) (added bool, err error) {
 	rule := v1beta1.IngressRule{
 		Host: host,
 		IngressRuleValue: v1beta1.IngressRuleValue{
 			HTTP: &v1beta1.HTTPIngressRuleValue{
 				Paths: []v1beta1.HTTPIngressPath{
 					{
-						Path: "/*",
+						Path: path,
 						Backend: v1beta1.IngressBackend{
 							ServiceName: svc,
 							ServicePort: intstr.FromInt(port),
