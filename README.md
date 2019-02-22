@@ -8,6 +8,8 @@ This action is useful to build feature environments automatically on Github Acti
 ![architecture](./architecture.jpg)
 
 This tool to help editing ingress rules in following architecture.
+You need to create Deployments and Services on your Kubernetes cluster.
+If you are using GKE, check https://github.com/c-bata/gcloud/tree/master/kubectl to apply.
 
 ## Command line tool
 
