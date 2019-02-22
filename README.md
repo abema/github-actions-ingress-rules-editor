@@ -1,4 +1,4 @@
-# github-action-ingress-rules-editor
+# github-actions-ingress-rules-editor
 
 Edit kubernetes ingress rules and apply it.
 This action is useful to build feature environments automatically on Github Actions.

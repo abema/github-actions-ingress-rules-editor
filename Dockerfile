@@ -4,7 +4,10 @@ ENV GO111MODULE=on
 RUN mkdir /app
 WORKDIR /app
 
-ADD . /app
+ADD ./go.mod /app/go.mod
+ADD ./go.sum /app/go.sum
+ADD ./internal /app/internal
+ADD ./main.go /app/main.go
 RUN go build -o ingress_rules_editor ./main.go
 
 # Runner

@@ -1,25 +1,30 @@
 #!/bin/sh
 set -e
 
-BRANCH_NAME="$GITHUB_REF"
+BRANCH_NAME=$(echo $GITHUB_REF | sed -e "s/^refs\/heads\///g")
 echo $BRANCH_NAME
 
-FEATURE_NAME=$(subst ${BRANCH_PREFIX},,$(BRANCH_NAME))
+FEATURE_NAME=$(echo $BRANCH_NAME | sed -e "s/^${BRANCH_PREFIX}//g")
 echo $FEATURE_NAME
 
-INGRESS_HOST="${FEATURE_NAME}-${HOST_SUFFIX}"
+INGRESS_HOST="$FEATURE_NAME"
+if [ "$HOST_PREFIX" != "" ] && [ "$HOST_SUFFIX" != "" ]; then
+  INGRESS_HOST="${HOST_PREFIX}${FEATURE_NAME}${HOST_SUFFIX}"
+elif [ "$HOST_SUFFIX" != "" ]; then
+  INGRESS_HOST="${FEATURE_NAME}${HOST_SUFFIX}"
+elif [ "$HOST_PREFIX" != "" ]; then
+  INGRESS_HOST="${HOST_PREFIX}${FEATURE_NAME}"
+fi
 echo $INGRESS_HOST
 
-echo $GITHUB_EVENT_NAME
-
-if [ "$GITHUB_EVENT_NAME" = "push" ]
-then
-    /builder/ingress_rules_editor add -ingress=${INGRESS_NAME} -host=${INGRESS_HOST} -service=${SERVICE_NAME} -port=${SERVICE_PORT} -path=${INGRESS_PATH} -namespace=${NAMESPACE}
-elif [ "$GITHUB_EVENT_NAME" = "remove" ]
-then
-    /builder/ingress_rules_editor remove -ingress=${INGRESS_NAME} -host=${INGRESS_HOST} -path=${INGRESS_PATH} -namespace=${NAMESPACE}
-else
-    exit 1
+SERVICE_NAME="$FEATURE_NAME"
+if [ "$SERVICE_PREFIX" != "" ] && [ "$SERVICE_SUFFIX" != "" ]; then
+  SERVICE_NAME="${SERVICE_PREFIX}${FEATURE_NAME}${SERVICE_SUFFIX}"
+elif [ "$SERVICE_SUFFIX" != "" ]; then
+  SERVICE_NAME="${FEATURE_NAME}${SERVICE_SUFFIX}"
+elif [ "$SERVICE_PREFIX" != "" ]; then
+  SERVICE_NAME="${SERVICE_PREFIX}${FEATURE_NAME}"
 fi
+echo $SERVICE_NAME
 
-exit 0
+/builder/ingress_rules_editor ${OPERATION} -ingress="$INGRESS_NAME" -host="$INGRESS_HOST" -service=$"SERVICE_NAME" -port=$"SERVICE_PORT" -path="$INGRESS_PATH" -namespace="$NAMESPACE"
