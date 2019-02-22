@@ -1,4 +1,5 @@
 *.o
 bin/
+builds/
 vendor/
 ingress_rules_editor

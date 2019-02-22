@@ -1,3 +1,9 @@
+NAME := ingress-rules-editor
+VERSION := $(shell git describe --tags --abbrev=0)
+REVISION := $(shell git rev-parse --short HEAD)
+LDFLAGS := -X 'main.version=$(VERSION)' \
+           -X 'main.revision=$(REVISION)'
+
 .DEFAULT_GOAL := help
 
 PKGS := $(shell go list ./...)
@@ -15,7 +21,19 @@ lint: ## Run golint and go vet.
 
 .PHONY: build
 build: ## Build ingress_rules_editor.
-	go build -o ingress_rules_editor ./main.go
+	go build -ldflags "$(LDFLAGS)" -o ingress_rules_editor ./main.go
+
+.PHONY: cross
+cross: main.go  ## Build binaries for cross platform.
+	mkdir -p builds
+	@for arch in "amd64" "386"; do \
+		GOOS=darwin GOARCH=$${arch} make build; \
+		zip builds/ingress_rules_editor-$(VERSION)_darwin_$${arch}.zip ingress_rules_editor; \
+	done;
+	@for arch in "amd64" "386" "arm64"; do \
+		GOOS=linux GOARCH=$${arch} make build; \
+		zip builds/ingress_rules_editor-$(VERSION)_linux_$${arch}.zip ingress_rules_editor; \
+	done;
 
 .PHONY: docker-build
 docker-build: ## Build docker image.
