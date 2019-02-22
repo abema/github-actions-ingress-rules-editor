@@ -40,13 +40,13 @@ func run(operation string) int {
 		var added bool
 		added, err = editor.Add(ingressHost, pathRule, serviceName, servicePort)
 		if !added {
-			return exitNeutral
+			return exitSuccess
 		}
 	case "remove":
 		var found bool
 		found, err = editor.Remove(ingressHost)
 		if !found {
-			return exitNeutral
+			return exitSuccess
 		}
 	}
 	if err != nil {
