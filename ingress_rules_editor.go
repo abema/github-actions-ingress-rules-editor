@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 	"os"
+	"strconv"
 
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,11 +23,7 @@ const (
 )
 
 var (
-	namespace   string
-	ingressHost string
-	ingressName string
-	serviceName string
-	servicePort int
+	namespace string
 )
 
 func newClient() (*kubernetes.Clientset, error) {
@@ -45,74 +42,133 @@ func newClient() (*kubernetes.Clientset, error) {
 	return client, nil
 }
 
-func addRule(ingress *v1beta1.Ingress) {
-	rule := v1beta1.IngressRule{
-		Host: ingressHost,
+func createRule(host string, svc string, port int) v1beta1.IngressRule {
+	return v1beta1.IngressRule{
+		Host: host,
 		IngressRuleValue: v1beta1.IngressRuleValue{
 			HTTP: &v1beta1.HTTPIngressRuleValue{
 				Paths: []v1beta1.HTTPIngressPath{
 					{
 						Path: "/*",
 						Backend: v1beta1.IngressBackend{
-							ServiceName: serviceName,
-							ServicePort: intstr.FromInt(servicePort),
+							ServiceName: svc,
+							ServicePort: intstr.FromInt(port),
 						},
 					},
 				},
 			},
 		},
 	}
-	ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
 }
 
-func removeRule(ingress *v1beta1.Ingress) {
-	for i, r := range ingress.Spec.Rules {
-		if r.Host == ingressHost {
-			ingress.Spec.Rules = append(ingress.Spec.Rules[:i], ingress.Spec.Rules[i+1:]...)
-			break
+func addRule(ingress *v1beta1.Ingress, rule v1beta1.IngressRule) (added bool) {
+	for _, r := range ingress.Spec.Rules {
+		if r.Host == rule.Host {
+			return false
 		}
 	}
+	ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
+	return true
 }
 
-func run(operation string) int {
-	client, err := newClient()
-	if err != nil {
-		return exitK8sConfigErr
+func removeRule(ingress *v1beta1.Ingress, host string) (found bool) {
+	for i, r := range ingress.Spec.Rules {
+		if r.Host == host {
+			ingress.Spec.Rules = append(ingress.Spec.Rules[:i], ingress.Spec.Rules[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func validateCmdArgs(args []string) (ok bool) {
+	if len(args) < 2 {
+		return false
 	}
 
+	op := args[0]
+	switch op {
+	case "add":
+		if len(args) != 5 {
+			return false
+		}
+	case "remove":
+		if len(args) != 3 {
+			return false
+		}
+	default:
+		return false
+	}
+	return true
+}
+
+func run(args []string) int {
+	client, err := newClient()
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "error:", err)
+		return exitK8sConfigErr
+	}
+	ok := validateCmdArgs(args)
+	if !ok {
+		return exitInvalidCmdArgs
+	}
+
+	operation := args[0]
+	ingressName := args[1]
 	ingresses := client.ExtensionsV1beta1().Ingresses(namespace)
 	ing, err := ingresses.Get(ingressName, metav1.GetOptions{})
 	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "error:", err)
 		return exitK8sOperationErr
 	}
 
 	switch operation {
 	case "add":
-		addRule(ing)
+		host := args[2]
+		serviceName := args[3]
+		servicePort, err := strconv.Atoi(args[4])
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, "error:", err)
+			return exitInvalidCmdArgs
+		}
+		rule := createRule(host, serviceName, servicePort)
+		added := addRule(ing, rule)
+		if !added {
+			return exitNeutral
+		}
 	case "remove":
-		removeRule(ing)
-	default:
-		return exitInvalidCmdArgs
+		host := args[2]
+		found := removeRule(ing, host)
+		if !found {
+			return exitNeutral
+		}
 	}
 
-	updated, err := client.ExtensionsV1beta1().Ingresses(namespace).Update(ing)
+	_, err = client.ExtensionsV1beta1().Ingresses(namespace).Update(ing)
 	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "error:", err)
 		return exitK8sOperationErr
 	}
-
-	log.Printf("updated: %#v\n", updated)
 	return exitSuccess
+}
+
+func usage() {
+	_, _ = fmt.Fprintf(flag.CommandLine.Output(), `Usage:
+  %s add <INGRESS_NAME> <INGRESS_HOST> <SERVICE_NAME> <SERVICE_PORT>
+  %s remove <INGRESS_NAME> <INGRESS_HOST>
+
+`, os.Args[0], os.Args[0])
+	flag.PrintDefaults()
 }
 
 func main() {
 	flag.StringVar(&namespace, "namespace", "default", "kubernetes namespace")
-	flag.StringVar(&ingressHost, "host", "", "kubernetes ingress host")
-	flag.StringVar(&ingressName, "name", "", "kubernetes ingress name")
-	flag.StringVar(&serviceName, "svcname", "", "kubernetes service name")
-	flag.IntVar(&servicePort, "svcport", 80, "port number of kubernetes service")
+	flag.Usage = usage
 	flag.Parse()
 
-	op := flag.Arg(0)
-	status := run(op)
+	status := run(flag.Args())
+	if status == exitInvalidCmdArgs {
+		usage()
+	}
 	os.Exit(status)
 }

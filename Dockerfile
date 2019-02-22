@@ -1,13 +1,10 @@
 FROM golang:1.11 AS builder
 
+ENV GO111MODULE=on
 RUN mkdir /app
 WORKDIR /app
 
-ADD ./go.mod /app/go.mod
-ADD ./go.sum /app/go.sum
-RUN go mod tidy
-
-ADD ingress_rules_editor.go /app
+ADD . /app
 RUN go build -o ingress_rules_editor ./ingress_rules_editor.go
 
 # Runner
