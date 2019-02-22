@@ -1,4 +1,4 @@
-module github.com/c-bata/github-action-ingress-rules-editor
+module .
 
 require (
 	github.com/gogo/protobuf v1.2.1 // indirect
