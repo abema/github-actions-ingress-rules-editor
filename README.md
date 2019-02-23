@@ -19,6 +19,7 @@ Usage:
   ./ingress_rules_editor add -ingress=<INGRESS_NAME> -host=<INGRESS_HOST> -service=<SERVICE_NAME> -port=<SERVICE_PORT>
   ./ingress_rules_editor remove -ingress=<INGRESS_NAME> -host=<INGRESS_HOST>
 
+Options:
   -host string
         ingress host (required).
   -ingress string
