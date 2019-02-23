@@ -44,7 +44,7 @@ func main() {
 	flag.StringVar(&ingressHost, "host", "", "ingress host (required).")
 	flag.StringVar(&pathRule, "path", "/*", "matching path rules of an incoming request (optional).")
 	flag.StringVar(&serviceName, "service", "", "name of kubernetes service (required when running 'add').")
-	flag.IntVar(&servicePort, "port", -1, "port number (required when running 'add').")
+	flag.IntVar(&servicePort, "port", -1, "port number (optional if one port is opened in service).")
 	flag.StringVar(&namespace, "namespace", "", "kubernetes namespace (optional).")
 
 	flag.Usage = usage
@@ -75,6 +75,13 @@ func run(operation string) int {
 
 	switch operation {
 	case "add":
+		if servicePort == -1 {
+			err = getServicePort(client)
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stderr, "error:", err)
+				return exitInvalidCmdArgs
+			}
+		}
 		rule := createRule()
 		if added := addRule(ingress, rule); !added {
 			return exitSuccess
@@ -95,8 +102,7 @@ func run(operation string) int {
 func validateCmdArgs(op string) error {
 	switch op {
 	case "add":
-		if ingressName == "" || ingressHost == "" ||
-			serviceName == "" || servicePort == -1 {
+		if ingressName == "" || ingressHost == "" || serviceName == "" {
 			return errors.New("must specify 'ingress', 'host', 'service' and 'port' option")
 		}
 	case "remove":
@@ -166,4 +172,19 @@ func removeRule(ingress *v1beta1.Ingress) (found bool) {
 		}
 	}
 	return false
+}
+
+func getServicePort(client *kubernetes.Clientset) error {
+	svc, err := client.CoreV1().Services(namespace).Get(serviceName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if len(svc.Spec.Ports) == 1 {
+		// if one port is opened, use it as a default.
+		servicePort = int(svc.Spec.Ports[0].Port)
+		return nil
+	}
+	// if no ports is opened or multiple ports are opened,
+	// we can't choice port number that ingress to specify.
+	return fmt.Errorf("please specify port number")
 }
