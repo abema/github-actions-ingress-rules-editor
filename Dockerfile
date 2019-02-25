@@ -6,7 +6,6 @@ WORKDIR /app
 
 ADD ./go.mod /app/go.mod
 ADD ./go.sum /app/go.sum
-ADD ./internal /app/internal
 ADD ./main.go /app/main.go
 RUN go build -o ingress_rules_editor ./main.go
 
@@ -16,7 +15,7 @@ FROM alpine:latest
 RUN apk --update add ca-certificates atop
 
 LABEL "name"="ingress-rules-editor"
-LABEL "version"="0.0.1"
+LABEL "version"="0.0.2"
 LABEL "maintainer"="Masashi Shibata <shibata_masashi@cyberagent.co.jp>"
 
 LABEL "com.github.actions.name"="GitHub Action to edit kubernetes ingress rules."
