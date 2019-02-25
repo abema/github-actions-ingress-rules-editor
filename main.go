@@ -5,18 +5,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 const (
 	exitSuccess         = 0
 	exitInvalidCmdArgs  = 1
 	exitK8sOperationErr = 2
+	exitCanceled        = 3
 	exitNeutral         = 78
 )
 
@@ -27,6 +31,7 @@ var (
 	servicePort int
 	namespace   string
 	pathRule    string
+	skipConfirm bool
 )
 
 func usage() {
@@ -44,8 +49,9 @@ func main() {
 	flag.StringVar(&ingressHost, "host", "", "ingress host (required).")
 	flag.StringVar(&pathRule, "path", "/*", "matching path rules of an incoming request (optional).")
 	flag.StringVar(&serviceName, "service", "", "name of kubernetes service (required when running 'add').")
-	flag.IntVar(&servicePort, "port", -1, "port number (optional if one port is opened in service).")
+	flag.IntVar(&servicePort, "port", -1, "port number (required when running 'add').")
 	flag.StringVar(&namespace, "namespace", "", "kubernetes namespace (optional).")
+	flag.BoolVar(&skipConfirm, "y", false, "say yes in all confirmations")
 
 	flag.Usage = usage
 	flag.Parse()
@@ -73,15 +79,11 @@ func run(operation string) int {
 		return exitK8sOperationErr
 	}
 
+	fmt.Println("before:")
+	prettyPrintRule(ingress)
+
 	switch operation {
 	case "add":
-		if servicePort == -1 {
-			err = getServicePort(client)
-			if err != nil {
-				_, _ = fmt.Fprintln(os.Stderr, "error:", err)
-				return exitInvalidCmdArgs
-			}
-		}
 		rule := createRule()
 		if added := addRule(ingress, rule); !added {
 			return exitSuccess
@@ -90,6 +92,13 @@ func run(operation string) int {
 		if found := removeRule(ingress); !found {
 			return exitSuccess
 		}
+	}
+
+	fmt.Println("after:")
+	prettyPrintRule(ingress)
+
+	if !confirm() {
+		return exitCanceled
 	}
 	_, err = client.ExtensionsV1beta1().Ingresses(namespace).Update(ingress)
 	if err != nil {
@@ -102,7 +111,7 @@ func run(operation string) int {
 func validateCmdArgs(op string) error {
 	switch op {
 	case "add":
-		if ingressName == "" || ingressHost == "" || serviceName == "" {
+		if ingressName == "" || ingressHost == "" || serviceName == "" || servicePort == -1 {
 			return errors.New("must specify 'ingress', 'host', 'service' and 'port' option")
 		}
 	case "remove":
@@ -154,6 +163,28 @@ func createRule() v1beta1.IngressRule {
 	}
 }
 
+func prettyPrintRule(ingress *v1beta1.Ingress) {
+	fmt.Println(ingress.Name)
+	for _, r := range ingress.Spec.Rules {
+		fmt.Printf("- %s\n", r.Host)
+	}
+}
+
+func confirm() bool {
+	if skipConfirm {
+		return true
+	}
+
+	fmt.Print("Apply? (y/N): ")
+	var response string
+	fmt.Scanln(&response)
+	if !strings.HasPrefix(strings.ToLower(response), "y") {
+		fmt.Println("canceled.")
+		return false
+	}
+	return true
+}
+
 func addRule(ingress *v1beta1.Ingress, rule v1beta1.IngressRule) (added bool) {
 	for _, r := range ingress.Spec.Rules {
 		if r.Host == rule.Host {
@@ -172,19 +203,4 @@ func removeRule(ingress *v1beta1.Ingress) (found bool) {
 		}
 	}
 	return false
-}
-
-func getServicePort(client *kubernetes.Clientset) error {
-	svc, err := client.CoreV1().Services(namespace).Get(serviceName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	if len(svc.Spec.Ports) == 1 {
-		// if one port is opened, use it as a default.
-		servicePort = int(svc.Spec.Ports[0].Port)
-		return nil
-	}
-	// if no ports is opened or multiple ports are opened,
-	// we can't choice port number that ingress to specify.
-	return fmt.Errorf("please specify port number")
 }
