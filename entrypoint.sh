@@ -1,4 +1,4 @@
 #!/bin/sh
 set -e
 
-sh -c "/builder/ingress_rules_editor $*"
+sh -c "/ingress_rules_editor $*"

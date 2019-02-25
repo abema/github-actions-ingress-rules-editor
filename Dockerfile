@@ -24,5 +24,7 @@ LABEL "com.github.actions.icon"="upload-cloud"
 LABEL "com.github.actions.color"="green"
 
 COPY entrypoint.sh /entrypoint.sh
+COPY --from=builder /app/ingress_rules_editor /ingress_rules_editor
+
 ENTRYPOINT ["/entrypoint.sh"]
 
