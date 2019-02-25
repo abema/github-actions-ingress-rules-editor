@@ -16,8 +16,8 @@ If you are using GKE, check https://github.com/c-bata/gcloud/tree/master/kubectl
 ```
 $ ./ingress_rules_editor --help
 Usage:
-  ./ingress_rules_editor add -ingress=<INGRESS_NAME> -host=<INGRESS_HOST> -service=<SERVICE_NAME> -port=<SERVICE_PORT>
-  ./ingress_rules_editor remove -ingress=<INGRESS_NAME> -host=<INGRESS_HOST>
+  ./ingress_rules_editor -ingress=<INGRESS_NAME> -host=<INGRESS_HOST> -service=<SERVICE_NAME> -port=<SERVICE_PORT> add
+  ./ingress_rules_editor -ingress=<INGRESS_NAME> -host=<INGRESS_HOST> remove
 
 Options:
   -host string
@@ -32,6 +32,7 @@ Options:
         port number (required when running 'add'). (default -1)
   -service string
         name of kubernetes service (required when running 'add').
+  -y    say yes in all confirmations
 ```
 
 ## LICENSE

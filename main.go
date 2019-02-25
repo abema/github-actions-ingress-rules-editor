@@ -36,8 +36,8 @@ var (
 
 func usage() {
 	_, _ = fmt.Fprintf(flag.CommandLine.Output(), `Usage:
-  %s add -ingress=<INGRESS_NAME> -host=<INGRESS_HOST> -service=<SERVICE_NAME> -port=<SERVICE_PORT>
-  %s remove -ingress=<INGRESS_NAME> -host=<INGRESS_HOST>
+  %s -ingress=<INGRESS_NAME> -host=<INGRESS_HOST> -service=<SERVICE_NAME> -port=<SERVICE_PORT> add
+  %s -ingress=<INGRESS_NAME> -host=<INGRESS_HOST> remove
 
 Options:
 `, os.Args[0], os.Args[0])
